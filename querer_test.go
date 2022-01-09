@@ -17,7 +17,7 @@ func TestNew(t *testing.T) {
 			)
 			So(err, ShouldBeNil)
 			So(query, ShouldEqual,
-				"SELECT field_1, field_2, field_3 FROM test WHERE $1<field_1;")
+				"SELECT field_1, field_2, field_3 FROM test WHERE field_1>$1;")
 			t.Log(query)
 		})
 	})
@@ -73,7 +73,7 @@ func TestNew(t *testing.T) {
 					}))
 			So(err, ShouldBeNil)
 			So(query, ShouldEqual,
-				"SELECT field_1, field_2, field_3 FROM test WHERE $1<field_1 AND field_2 && $2;")
+				"SELECT field_1, field_2, field_3 FROM test WHERE field_1>$1 AND field_2 && $2;")
 			t.Log(query)
 		})
 	})

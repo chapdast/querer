@@ -79,15 +79,14 @@ func (q *querer) Build(opts ...Option) (string, error) {
 		}
 	case ActionUpdate:
 		if err := binary.Write(q.buf, binary.LittleEndian,
-			[]byte(" SET")); err != nil {
+			[]byte(" SET ")); err != nil {
 			return "", err
 		}
 		var s [][]byte
 		for _, field := range q.fields {
-			s = append(s, []byte(fmt.Sprintf(" %s=$%d", field, q.queryPosition)))
-
+			s = append(s, q.PositionalFieldArg(field, OprEqual))
 		}
-		if err := binary.Write(q.buf, binary.LittleEndian, bytes.Join(s, []byte(","))); err != nil {
+		if err := binary.Write(q.buf, binary.LittleEndian, bytes.Join(s, []byte(", "))); err != nil {
 			return "", err
 		}
 	}
@@ -153,7 +152,7 @@ func (q *querer) PositionalFieldArg(field string, operator OperatorType) []byte 
 	case OprNotEqual:
 		format = "%s!=$%d"
 	case OprGreater:
-		format = "$%d<%s"
+		format = "%s>$%d"
 	case OprGreaterOrEqual:
 		format="%s>=$%d"
 	case OprLower:
