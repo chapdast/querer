@@ -94,44 +94,46 @@ func (q *querer) Build(opts ...Option) (string, error) {
 	}
 
 	//add conditions
-	switch q.action {
+	if len(q.conditions) > 0 {
+		switch q.action {
 
-	case ActionSelect:
-		fallthrough
-	case ActionUpdate:
-		fallthrough
-	case ActionDelete:
-		if err := binary.Write(q.buf, binary.LittleEndian,
-			[]byte(" WHERE ")); err != nil {
-			return "", err
-		}
-		var s [][]byte
-		for k, oprator := range q.conditions {
-			switch oprator {
-			case OprEqual:
-				s = append(s, []byte(fmt.Sprintf("%s=$%d", k, q.queryPosition)))
-			case OprNotEqual:
-				s = append(s, []byte(fmt.Sprintf("%s!=$%d", k, q.queryPosition)))
-			case OprGreater:
-				s = append(s, []byte(fmt.Sprintf("$%d<%s", q.queryPosition, k)))
-			case OprGreaterOrEqual:
-				s = append(s, []byte(fmt.Sprintf("$%d<=%s", q.queryPosition, k)))
-			case OprLower:
-				s = append(s, []byte(fmt.Sprintf("%s<$%d", k, q.queryPosition)))
-			case OprLowerOrEqual:
-				s = append(s, []byte(fmt.Sprintf("%s<=$%d", k, q.queryPosition)))
-			case OprInArray:
-				s = append(s, []byte(fmt.Sprintf("%s = ANY($%d)", k, q.queryPosition)))
-			case OprArrayOverlap:
-				s = append(s, []byte(fmt.Sprintf("%s && $%d", k, q.queryPosition)))
-			case OprSubstring:
-				s = append(s, []byte(fmt.Sprintf("%s like '%%'||$%d||'%%'", k, q.queryPosition)))
+		case ActionSelect:
+			fallthrough
+		case ActionUpdate:
+			fallthrough
+		case ActionDelete:
+			if err := binary.Write(q.buf, binary.LittleEndian,
+				[]byte(" WHERE ")); err != nil {
+				return "", err
 			}
-			q.queryPosition += 1
-		}
-		if err := binary.Write(q.buf, binary.LittleEndian,
-			bytes.Join(s, []byte(" AND "))); err != nil {
-			return "", err
+			var s [][]byte
+			for k, oprator := range q.conditions {
+				switch oprator {
+				case OprEqual:
+					s = append(s, []byte(fmt.Sprintf("%s=$%d", k, q.queryPosition)))
+				case OprNotEqual:
+					s = append(s, []byte(fmt.Sprintf("%s!=$%d", k, q.queryPosition)))
+				case OprGreater:
+					s = append(s, []byte(fmt.Sprintf("$%d<%s", q.queryPosition, k)))
+				case OprGreaterOrEqual:
+					s = append(s, []byte(fmt.Sprintf("$%d<=%s", q.queryPosition, k)))
+				case OprLower:
+					s = append(s, []byte(fmt.Sprintf("%s<$%d", k, q.queryPosition)))
+				case OprLowerOrEqual:
+					s = append(s, []byte(fmt.Sprintf("%s<=$%d", k, q.queryPosition)))
+				case OprInArray:
+					s = append(s, []byte(fmt.Sprintf("%s = ANY($%d)", k, q.queryPosition)))
+				case OprArrayOverlap:
+					s = append(s, []byte(fmt.Sprintf("%s && $%d", k, q.queryPosition)))
+				case OprSubstring:
+					s = append(s, []byte(fmt.Sprintf("%s like '%%'||$%d||'%%'", k, q.queryPosition)))
+				}
+				q.queryPosition += 1
+			}
+			if err := binary.Write(q.buf, binary.LittleEndian,
+				bytes.Join(s, []byte(" AND "))); err != nil {
+				return "", err
+			}
 		}
 	}
 
