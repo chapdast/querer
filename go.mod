@@ -1,4 +1,4 @@
-module gihub.com/chapdast/querer
+module github.com/chapdast/querer
 
 go 1.17
 
