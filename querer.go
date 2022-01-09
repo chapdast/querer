@@ -8,10 +8,9 @@ type Querer interface {
 	Builder
 }
 
-func New(TableName string, fields []string) Querer {
+func New(TableName string) Querer {
 	return &querer{
 		tableName:     TableName,
-		fields:        fields,
 		buf:           &bytes.Buffer{},
 		queryPosition: 1,
 	}
@@ -19,15 +18,16 @@ func New(TableName string, fields []string) Querer {
 
 type querer struct {
 	tableName string
-	fields    []string // update or insert
 	// these will reset to zero value after build
 	action        Action
+	fields        []string // update or insert
 	conditions    map[string]OperatorType
 	limit         int
 	offset        int
 	order         OrderBy
 	buf           *bytes.Buffer
 	queryPosition int
+	data          []interface{}
 }
 
 func (q *querer) reset() {
@@ -38,6 +38,8 @@ func (q *querer) reset() {
 	q.order = nil
 	q.conditions = nil
 	q.queryPosition = 1
+	q.data = nil
+	q.fields = nil
 }
 
 func (q *querer) loadOpts(opts []Option) error {

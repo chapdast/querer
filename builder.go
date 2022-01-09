@@ -8,43 +8,44 @@ import (
 )
 
 type Builder interface {
-	Build(opts ...Option) (string, error)
+	Build(opts ...Option) (string, []interface{}, error)
 }
 
-func (q *querer) Build(opts ...Option) (string, error) {
+func (q *querer) Build(opts ...Option) (string, []interface{}, error) {
+
 	defer q.reset()
 	if err := q.loadOpts(opts); err != nil {
-		return "", err
+		return "", nil, err
 	}
 	// set query type
 	switch q.action {
 	case ActionSelect:
 		if err := binary.Write(q.buf, binary.LittleEndian, []byte("SELECT")); err != nil {
-			return "", err
+			return "", nil, err
 		}
 	case ActionInsert:
 		if err := binary.Write(q.buf, binary.LittleEndian, []byte("INSERT INTO")); err != nil {
-			return "", err
+			return "", nil, err
 		}
 		// add table name
 		if err := binary.Write(q.buf, binary.LittleEndian, []byte(" "+q.tableName)); err != nil {
-			return "", err
+			return "", nil, err
 		}
 	case ActionUpdate:
 		if err := binary.Write(q.buf, binary.LittleEndian, []byte("UPDATE")); err != nil {
-			return "", err
+			return "", nil, err
 		}
 		// add table name
 		if err := binary.Write(q.buf, binary.LittleEndian, []byte(" "+q.tableName)); err != nil {
-			return "", err
+			return "", nil, err
 		}
 	case ActionDelete:
 		if err := binary.Write(q.buf, binary.LittleEndian, []byte("DELETE FROM")); err != nil {
-			return "", err
+			return "", nil, err
 		}
 		// add table name
 		if err := binary.Write(q.buf, binary.LittleEndian, []byte(" "+q.tableName)); err != nil {
-			return "", err
+			return "", nil, err
 		}
 	}
 
@@ -53,16 +54,16 @@ func (q *querer) Build(opts ...Option) (string, error) {
 	case ActionSelect:
 		if err := binary.Write(q.buf, binary.LittleEndian,
 			[]byte(" "+strings.Join(q.fields, ", "))); err != nil {
-			return "", err
+			return "", nil, err
 		}
 		// add table name
 		if err := binary.Write(q.buf, binary.LittleEndian, []byte(" FROM "+q.tableName)); err != nil {
-			return "", err
+			return "", nil, err
 		}
 	case ActionInsert:
 		if err := binary.Write(q.buf, binary.LittleEndian,
 			[]byte(" ("+strings.Join(q.fields, ", ")+") VALUES (")); err != nil {
-			return "", err
+			return "", nil, err
 		}
 
 		var s [][]byte
@@ -71,23 +72,23 @@ func (q *querer) Build(opts ...Option) (string, error) {
 		}
 		if err := binary.Write(q.buf, binary.LittleEndian,
 			bytes.Join(s, []byte(", "))); err != nil {
-			return "", err
+			return "", nil, err
 		}
 		if err := binary.Write(q.buf, binary.LittleEndian,
 			[]byte(" )")); err != nil {
-			return "", err
+			return "", nil, err
 		}
 	case ActionUpdate:
 		if err := binary.Write(q.buf, binary.LittleEndian,
 			[]byte(" SET ")); err != nil {
-			return "", err
+			return "", nil, err
 		}
 		var s [][]byte
 		for _, field := range q.fields {
 			s = append(s, q.PositionalFieldArg(field, OprEqual))
 		}
 		if err := binary.Write(q.buf, binary.LittleEndian, bytes.Join(s, []byte(", "))); err != nil {
-			return "", err
+			return "", nil, err
 		}
 	}
 
@@ -102,15 +103,16 @@ func (q *querer) Build(opts ...Option) (string, error) {
 		case ActionDelete:
 			if err := binary.Write(q.buf, binary.LittleEndian,
 				[]byte(" WHERE ")); err != nil {
-				return "", err
+				return "", nil, err
 			}
 			var s [][]byte
 			for k, oprator := range q.conditions {
 				s = append(s, q.PositionalFieldArg(k, oprator))
+
 			}
 			if err := binary.Write(q.buf, binary.LittleEndian,
 				bytes.Join(s, []byte(" AND "))); err != nil {
-				return "", err
+				return "", nil, err
 			}
 		}
 	}
@@ -118,22 +120,22 @@ func (q *querer) Build(opts ...Option) (string, error) {
 	if q.offset != 0 {
 		if err := binary.Write(q.buf, binary.LittleEndian,
 			[]byte(fmt.Sprintf(" OFFSET %s", q.PositionalArg()))); err != nil {
-			return "", err
+			return "", nil, err
 		}
 	}
 	if q.limit != 0 {
 		if err := binary.Write(q.buf, binary.LittleEndian,
 			[]byte(fmt.Sprintf(" LIMIT %s", q.PositionalArg()))); err != nil {
-			return "", err
+			return "", nil, err
 		}
 	}
 
 	if err := binary.Write(q.buf, binary.LittleEndian,
 		[]byte(";")); err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	return q.buf.String(), nil
+	return q.buf.String(), q.data, nil
 
 }
 
@@ -154,7 +156,7 @@ func (q *querer) PositionalFieldArg(field string, operator OperatorType) []byte 
 	case OprGreater:
 		format = "%s>$%d"
 	case OprGreaterOrEqual:
-		format="%s>=$%d"
+		format = "%s>=$%d"
 	case OprLower:
 		format = "%s<$%d"
 	case OprLowerOrEqual:
@@ -168,4 +170,3 @@ func (q *querer) PositionalFieldArg(field string, operator OperatorType) []byte 
 	}
 	return []byte(fmt.Sprintf(format, field, q.getPos()))
 }
-

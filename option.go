@@ -4,21 +4,38 @@ import "fmt"
 
 type Option func(q *querer) error
 
-func Select() Option {
+func Select(fields []string) Option {
 	return func(q *querer) error {
 		q.action = ActionSelect
+		for _, field := range fields {
+			q.fields = append(q.fields, field)
+		}
 		return nil
 	}
 }
-func Insert() Option {
+func Insert(fields []string, values []interface{}) Option {
 	return func(q *querer) error {
+		if len(fields) != len(values) {
+			return fmt.Errorf("fields not match values")
+		}
 		q.action = ActionInsert
+		for index, field := range fields {
+			q.fields = append(q.fields, field)
+			q.data = append(q.data, values[index])
+		}
 		return nil
 	}
 }
-func Update() Option {
+func Update(fields []string, values []interface{}) Option {
 	return func(q *querer) error {
+		if len(fields) != len(values) {
+			return fmt.Errorf("fields not match values")
+		}
 		q.action = ActionUpdate
+		for index, field := range fields {
+			q.fields = append(q.fields, field)
+			q.data = append(q.data, values[index])
+		}
 		return nil
 	}
 }
@@ -28,21 +45,34 @@ func Delete() Option {
 		return nil
 	}
 }
-func Where(c map[string]OperatorType) Option {
+
+type Conditional struct {
+	Field     string
+	Operation OperatorType
+	Value     interface{}
+}
+
+func Where(condition Conditional) Option {
 	return func(q *querer) error {
-		q.conditions = c
+		if q.conditions == nil {
+			q.conditions = make(map[string]OperatorType)
+		}
+		q.conditions[condition.Field] = condition.Operation
+		q.data = append(q.data, condition.Value)
 		return nil
 	}
 }
 func Limit(limit int) Option {
 	return func(q *querer) error {
 		q.limit = limit
+		q.data = append(q.data, limit)
 		return nil
 	}
 }
 func Offset(offset int) Option {
 	return func(q *querer) error {
 		q.offset = offset
+		q.data = append(q.data, offset)
 		return nil
 	}
 }
