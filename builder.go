@@ -67,8 +67,7 @@ func (q *querer) Build(opts ...Option) (string, error) {
 
 		var s [][]byte
 		for range q.fields {
-			s = append(s, []byte(fmt.Sprintf("$%d", q.queryPosition)))
-			q.queryPosition += 1
+			s = append(s, q.PositionalArg())
 		}
 		if err := binary.Write(q.buf, binary.LittleEndian,
 			bytes.Join(s, []byte(", "))); err != nil {
@@ -86,7 +85,7 @@ func (q *querer) Build(opts ...Option) (string, error) {
 		var s [][]byte
 		for _, field := range q.fields {
 			s = append(s, []byte(fmt.Sprintf(" %s=$%d", field, q.queryPosition)))
-			q.queryPosition += 1
+
 		}
 		if err := binary.Write(q.buf, binary.LittleEndian, bytes.Join(s, []byte(","))); err != nil {
 			return "", err
@@ -108,32 +107,25 @@ func (q *querer) Build(opts ...Option) (string, error) {
 			}
 			var s [][]byte
 			for k, oprator := range q.conditions {
-				switch oprator {
-				case OprEqual:
-					s = append(s, []byte(fmt.Sprintf("%s=$%d", k, q.queryPosition)))
-				case OprNotEqual:
-					s = append(s, []byte(fmt.Sprintf("%s!=$%d", k, q.queryPosition)))
-				case OprGreater:
-					s = append(s, []byte(fmt.Sprintf("$%d<%s", q.queryPosition, k)))
-				case OprGreaterOrEqual:
-					s = append(s, []byte(fmt.Sprintf("$%d<=%s", q.queryPosition, k)))
-				case OprLower:
-					s = append(s, []byte(fmt.Sprintf("%s<$%d", k, q.queryPosition)))
-				case OprLowerOrEqual:
-					s = append(s, []byte(fmt.Sprintf("%s<=$%d", k, q.queryPosition)))
-				case OprInArray:
-					s = append(s, []byte(fmt.Sprintf("%s = ANY($%d)", k, q.queryPosition)))
-				case OprArrayOverlap:
-					s = append(s, []byte(fmt.Sprintf("%s && $%d", k, q.queryPosition)))
-				case OprSubstring:
-					s = append(s, []byte(fmt.Sprintf("%s like '%%'||$%d||'%%'", k, q.queryPosition)))
-				}
-				q.queryPosition += 1
+				s = append(s, q.PositionalFieldArg(k, oprator))
 			}
 			if err := binary.Write(q.buf, binary.LittleEndian,
 				bytes.Join(s, []byte(" AND "))); err != nil {
 				return "", err
 			}
+		}
+	}
+
+	if q.offset != 0 {
+		if err := binary.Write(q.buf, binary.LittleEndian,
+			[]byte(fmt.Sprintf(" OFFSET %s", q.PositionalArg()))); err != nil {
+			return "", err
+		}
+	}
+	if q.limit != 0 {
+		if err := binary.Write(q.buf, binary.LittleEndian,
+			[]byte(fmt.Sprintf(" LIMIT %s", q.PositionalArg()))); err != nil {
+			return "", err
 		}
 	}
 
@@ -145,3 +137,36 @@ func (q *querer) Build(opts ...Option) (string, error) {
 	return q.buf.String(), nil
 
 }
+
+func (q *querer) getPos() int {
+	q.queryPosition++
+	return q.queryPosition - 1
+}
+func (q *querer) PositionalArg() []byte {
+	return []byte(fmt.Sprintf("$%d", q.getPos()))
+}
+func (q *querer) PositionalFieldArg(field string, operator OperatorType) []byte {
+	var format string
+	switch operator {
+	case OprEqual:
+		format = "%s=$%d"
+	case OprNotEqual:
+		format = "%s!=$%d"
+	case OprGreater:
+		format = "$%d<%s"
+	case OprGreaterOrEqual:
+		format="%s>=$%d"
+	case OprLower:
+		format = "%s<$%d"
+	case OprLowerOrEqual:
+		format = "%s<=$%d"
+	case OprInArray:
+		format = "%s = ANY($%d)"
+	case OprArrayOverlap:
+		format = "%s && $%d"
+	case OprSubstring:
+		format = "%s like '%%'||$%d||'%%'"
+	}
+	return []byte(fmt.Sprintf(format, field, q.getPos()))
+}
+
