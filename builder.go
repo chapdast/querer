@@ -106,8 +106,10 @@ func (q *querer) Build(opts ...Option) (string, []interface{}, error) {
 				return "", nil, err
 			}
 			var s [][]byte
-			for k, oprator := range q.conditions {
-				s = append(s, q.PositionalFieldArg(k, oprator))
+			for k, operators := range q.conditions {
+				for _, operator := range operators {
+					s = append(s, q.PositionalFieldArg(k, operator))
+				}
 
 			}
 			if err := binary.Write(q.buf, binary.LittleEndian,
@@ -122,12 +124,14 @@ func (q *querer) Build(opts ...Option) (string, []interface{}, error) {
 			[]byte(fmt.Sprintf(" OFFSET %s", q.PositionalArg()))); err != nil {
 			return "", nil, err
 		}
+		q.data = append(q.data, q.offset)
 	}
 	if q.limit != 0 {
 		if err := binary.Write(q.buf, binary.LittleEndian,
 			[]byte(fmt.Sprintf(" LIMIT %s", q.PositionalArg()))); err != nil {
 			return "", nil, err
 		}
+		q.data = append(q.data, q.limit)
 	}
 
 	if err := binary.Write(q.buf, binary.LittleEndian,

@@ -98,4 +98,42 @@ func TestNew(t *testing.T) {
 			t.Log(values)
 		})
 	})
+
+	t.Run("SELECT_Variadic", func(t *testing.T) {
+		Convey(t.Name(), t, func() {
+			query, values, err := q.Build(
+				SelectFields(fields[1],
+					Coalesce(fields[0], "hello"),
+				),
+				Limit(100),
+				Where(Conditional{
+					Field:     fields[0],
+					Operation: OprGreater,
+					Value:     1,
+				}),
+				Where(Conditional{
+					Field:     fields[0],
+					Operation: OprNotEqual,
+					Value:     120,
+				}),
+				Where(Conditional{
+					Field:     fields[2],
+					Operation: OprSubstring,
+					Value:     "hello",
+				}),
+			)
+			So(err, ShouldBeNil)
+			So(query, ShouldEqual,
+				"SELECT field_2, COALESCE(field_1, 'hello') FROM test WHERE field_1>$1 AND field_1!=$2 AND field_3 like '%'||$3||'%' LIMIT $4;")
+			t.Log(values)
+			So(values, ShouldHaveLength, 4)
+			So(values[0], ShouldEqual, 1)
+			So(values[1], ShouldEqual, 120)
+			So(values[2], ShouldEqual, "hello")
+			So(values[3], ShouldEqual, 100)
+			t.Log(query)
+			t.Log(values)
+		})
+	})
+
 }

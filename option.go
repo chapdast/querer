@@ -4,10 +4,31 @@ import "fmt"
 
 type Option func(q *querer) error
 
+// SelectFields add fields name to be selected from query if empty, all fields will get selected
+func SelectFields(fields ...interface{}) Option {
+	var selection []string
+	for _, s := range fields {
+		switch data := s.(type) {
+		case string:
+			selection = append(selection, data)
+		case StringFunc:
+			selection = append(selection, data())
+		}
+	}
+
+	if len(fields) == 0 {
+		selection = append(selection, "*")
+	}
+	return query_select(selection)
+}
+
 func Select(fields []string) Option {
+	return query_select(fields)
+}
+func query_select(f []string) Option {
 	return func(q *querer) error {
 		q.action = ActionSelect
-		for _, field := range fields {
+		for _, field := range f {
 			q.fields = append(q.fields, field)
 		}
 		return nil
@@ -55,9 +76,11 @@ type Conditional struct {
 func Where(condition Conditional) Option {
 	return func(q *querer) error {
 		if q.conditions == nil {
-			q.conditions = make(map[string]OperatorType)
+			q.conditions = make(map[string][]OperatorType)
 		}
-		q.conditions[condition.Field] = condition.Operation
+		q.conditions[condition.Field] = append(q.conditions[condition.Field],
+			condition.Operation)
+
 		q.data = append(q.data, condition.Value)
 		return nil
 	}
@@ -65,14 +88,14 @@ func Where(condition Conditional) Option {
 func Limit(limit int) Option {
 	return func(q *querer) error {
 		q.limit = limit
-		q.data = append(q.data, limit)
+		//q.data = append(q.data, limit)
 		return nil
 	}
 }
 func Offset(offset int) Option {
 	return func(q *querer) error {
 		q.offset = offset
-		q.data = append(q.data, offset)
+		//q.data = append(q.data, offset)
 		return nil
 	}
 }
