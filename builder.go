@@ -106,14 +106,32 @@ func (q *querer) Build(opts ...Option) (string, []interface{}, error) {
 				return "", nil, err
 			}
 			var s [][]byte
-			for k, operators := range q.conditions {
-				for _, operator := range operators {
-					s = append(s, q.PositionalFieldArg(k, operator))
+			var join []Joiner
+			for k, condition := range q.conditions {
+				for _, cond := range condition {
+					s = append(s, q.PositionalFieldArg(k, cond.Operator()))
+					join = append(join, cond.ANDOR)
 				}
 
 			}
-			if err := binary.Write(q.buf, binary.LittleEndian,
-				bytes.Join(s, []byte(" AND "))); err != nil {
+			var conditions [][]byte
+			if len(s)>1{
+				for i, c:= range s {
+					conditions = append(conditions, c)
+					if i != len(join)-1 {
+						if join[i] == AND {
+							conditions = append(conditions, []byte("AND"))
+						} else if join[i] == OR {
+							conditions = append(conditions, []byte("OR"))
+						}
+					}
+				}
+			}else{
+				conditions = s
+			}
+
+ 			if err := binary.Write(q.buf, binary.LittleEndian,
+				bytes.Join(conditions, []byte(" "))); err != nil {
 				return "", nil, err
 			}
 		}
@@ -167,10 +185,16 @@ func (q *querer) PositionalFieldArg(field string, operator OperatorType) []byte 
 		format = "%s<=$%d"
 	case OprInArray:
 		format = "%s = ANY($%d)"
+	case OprNotInArray:
+		format = "%s != ANY($%d)"
 	case OprArrayOverlap:
 		format = "%s && $%d"
+	case OprNotArrayOverlap:
+		format = " NOT %s && $%d"
 	case OprSubstring:
-		format = "%s like '%%'||$%d||'%%'"
+		format = "%s LIKE '%%'||$%d||'%%'"
+	case OprNotSubstring:
+		format = "%s NOT LIKE '%%'||$%d||'%%'"
 	}
 	return []byte(fmt.Sprintf(format, field, q.getPos()))
 }

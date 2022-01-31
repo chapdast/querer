@@ -21,7 +21,7 @@ type querer struct {
 	// these will reset to zero value after build
 	action        Action
 	fields        []string // update or insert
-	conditions    map[string][]OperatorType
+	conditions    map[string][]Conditional
 	limit         int
 	offset        int
 	order         OrderBy

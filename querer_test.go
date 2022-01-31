@@ -26,6 +26,25 @@ func TestNew(t *testing.T) {
 			t.Log(values)
 		})
 	})
+	t.Run("SELECT_NEGATIVE", func(t *testing.T) {
+		Convey(t.Name(), t, func() {
+			query, values, err := q.Build(
+				Select(fields),
+				Where(Conditional{
+					Field:     fields[0],
+					Operation: OprGreater,
+					Value:     1,
+					Negate: true,
+				}),
+			)
+			So(err, ShouldBeNil)
+			So(query, ShouldEqual,
+				"SELECT field_1, field_2, field_3 FROM test WHERE field_1<=$1;")
+			So(values[0], ShouldEqual, 1)
+			t.Log(query)
+			t.Log(values)
+		})
+	})
 	t.Run("INSERT", func(t *testing.T) {
 		Convey(t.Name(), t, func() {
 			query, values, err := q.Build(
@@ -110,6 +129,7 @@ func TestNew(t *testing.T) {
 					Field:     fields[0],
 					Operation: OprGreater,
 					Value:     1,
+					ANDOR: OR,
 				}),
 				Where(Conditional{
 					Field:     fields[0],
@@ -124,7 +144,7 @@ func TestNew(t *testing.T) {
 			)
 			So(err, ShouldBeNil)
 			So(query, ShouldEqual,
-				"SELECT field_2, COALESCE(field_1, 'hello') FROM test WHERE field_1>$1 AND field_1!=$2 AND field_3 like '%'||$3||'%' LIMIT $4;")
+				"SELECT field_2, COALESCE(field_1, 'hello') FROM test WHERE field_1>$1 OR field_1!=$2 AND field_3 LIKE '%'||$3||'%' LIMIT $4;")
 			t.Log(values)
 			So(values, ShouldHaveLength, 4)
 			So(values[0], ShouldEqual, 1)

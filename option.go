@@ -67,19 +67,34 @@ func Delete() Option {
 	}
 }
 
+type Joiner int
+
+const (
+	AND Joiner = iota
+	OR
+)
+
 type Conditional struct {
 	Field     string
 	Operation OperatorType
 	Value     interface{}
+	ANDOR Joiner
+	Negate    bool
+}
+
+func (c Conditional) Operator() OperatorType {
+	if c.Negate {
+		return c.Operation.Flip()
+	}
+	return c.Operation
 }
 
 func Where(condition Conditional) Option {
 	return func(q *querer) error {
 		if q.conditions == nil {
-			q.conditions = make(map[string][]OperatorType)
+			q.conditions = make(map[string][]Conditional)
 		}
-		q.conditions[condition.Field] = append(q.conditions[condition.Field],
-			condition.Operation)
+		q.conditions[condition.Field] = append(q.conditions[condition.Field], condition)
 
 		q.data = append(q.data, condition.Value)
 		return nil
